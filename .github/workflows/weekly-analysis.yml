@@ -2,8 +2,13 @@ name: Weekly Traiding Analysis
 
 on:
   schedule:
-    - cron: "0 7 * * 5"   # 07:00 UTC, ogni venerdì
+    # Ogni venerdì alle 07:00 UTC (~08:00 Italia in inverno)
+    - cron: "0 7 * * 5"
   workflow_dispatch:
+
+# Necessario per permettere al workflow di fare git push
+permissions:
+  contents: write
 
 jobs:
   run-analysis:
@@ -12,6 +17,9 @@ jobs:
     steps:
       - name: Checkout repo
         uses: actions/checkout@v4
+        with:
+          # Serve lo storico completo per poter fare pull --rebase
+          fetch-depth: 0
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -35,6 +43,19 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          # Aggiunge solo data/ e docs/
           git add data/ docs/
-          git commit -m "Weekly update" || echo "Nothing to commit"
-          git push
+
+          # Se non ci sono cambiamenti, esce senza errore
+          if git diff --cached --quiet; then
+            echo "No changes to commit"
+            exit 0
+          fi
+
+          git commit -m "Weekly update"
+
+          # Allinea il branch locale con il remoto prima del push
+          git pull --rebase origin main || echo "Nothing to rebase"
+
+          git push origin main
