@@ -1,0 +1,16 @@
+{
+  "cash": 2000.0,
+  "last_value": 5000.0,
+  "positions": {
+    "NVDA": {
+      "ticker": "NVDA",
+      "quantity": 11.538461538461538,
+      "avg_price": 130.0
+    },
+    "MSFT": {
+      "ticker": "MSFT",
+      "quantity": 3.488372093023256,
+      "avg_price": 430.0
+    }
+  }
+}
