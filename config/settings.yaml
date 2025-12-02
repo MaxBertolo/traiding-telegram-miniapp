@@ -1,1 +1,16 @@
+start_date: "2025-12-19"
+start_cash: 5000.0
 
+weekly_run:
+  day_of_week: "FRI"
+  time_italy: "08:00"
+
+exchanges:
+  - "NYSE"
+  - "NASDAQ"
+  - "LSE"
+  - "EURONEXT_PARIS"
+  - "TSE"
+  - "BIT"
+
+currency: "EUR"
