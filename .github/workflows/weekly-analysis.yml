@@ -6,10 +6,6 @@ on:
     - cron: "0 7 * * 5"
   workflow_dispatch:
 
-# Necessario per permettere al workflow di fare git push
-permissions:
-  contents: write
-
 jobs:
   run-analysis:
     runs-on: ubuntu-latest
@@ -17,9 +13,6 @@ jobs:
     steps:
       - name: Checkout repo
         uses: actions/checkout@v4
-        with:
-          # Serve lo storico completo per poter fare pull --rebase
-          fetch-depth: 0
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -39,23 +32,8 @@ jobs:
         run: |
           python -m src.main
 
-      - name: Commit updated data & reports
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
+      # NOTA:
+      # Abbiamo tolto lo step di commit & push per evitare errori di conflitto.
+      # I report vengono generati e inviati via Telegram,
+      # ma se vuoi salvarli nel repo dovrai fare commit/push dal tuo Mac.
 
-          # Aggiunge solo data/ e docs/
-          git add data/ docs/
-
-          # Se non ci sono cambiamenti, esce senza errore
-          if git diff --cached --quiet; then
-            echo "No changes to commit"
-            exit 0
-          fi
-
-          git commit -m "Weekly update"
-
-          # Allinea il branch locale con il remoto prima del push
-          git pull --rebase origin main || echo "Nothing to rebase"
-
-          git push origin main
