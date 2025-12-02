@@ -10,6 +10,8 @@ TELEGRAM_API_URL = "https://api.telegram.org/bot{token}/{method}"
 def _post(method: str, token: str, payload: dict):
     url = TELEGRAM_API_URL.format(token=token, method=method)
     r = requests.post(url, json=payload, timeout=10)
+    if not r.ok:
+        print("Telegram error response:", r.text)
     r.raise_for_status()
     return r.json()
 
