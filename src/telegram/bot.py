@@ -56,26 +56,23 @@ def send_telegram_notification(
     Invia il messaggio settimanale con:
     - riepilogo del portafoglio
     - lista delle operazioni
-    - bottoni per aprire la Mini-App e l'ultimo report HTML
+    - bottoni per aprire la Mini-App (latest.html) e il report del giorno
     """
-    # Queste variabili arrivano dal workflow GitHub Actions
+    # Variabili d'ambiente passate dal workflow GitHub Actions
     token = os.environ["TELEGRAM_BOT_TOKEN"]
     chat_id = os.environ["TELEGRAM_CHAT_ID"]
-
-    # WEBAPP_URL può arrivare sia dal workflow che da un env locale
     webapp_url = os.environ.get("WEBAPP_URL", "").strip()
 
-    # Normalizziamo: se è non vuoto, facciamo sì che finisca con "/"
+    # Normalizza: se non è vuota, assicurati che finisca con "/"
     if webapp_url and not webapp_url.endswith("/"):
         webapp_url = webapp_url + "/"
 
     text = _format_message(state_after, trades)
 
-    # Costruiamo l'inline keyboard solo se abbiamo una WebApp URL
     inline_keyboard: List[List[dict]] = []
 
     if webapp_url:
-        # Bottone che apre la landing della Mini-App (index.html)
+        # Bottone che apre la mini-app (index.html → iframe su latest.html)
         inline_keyboard.append(
             [
                 {
@@ -85,7 +82,7 @@ def send_telegram_notification(
             ]
         )
 
-        # Bottone che apre direttamente l'ultimo report HTML
+        # Bottone che apre direttamente il report del giorno
         inline_keyboard.append(
             [
                 {
@@ -95,7 +92,7 @@ def send_telegram_notification(
             ]
         )
 
-    payload = {
+    payload: dict = {
         "chat_id": chat_id,
         "text": text,
         "parse_mode": "Markdown",
