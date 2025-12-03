@@ -1,39 +1,50 @@
 name: Weekly Traiding Analysis
 
 on:
-  schedule:
-    # Ogni venerdì alle 07:00 UTC (~08:00 Italia in inverno)
-    - cron: "0 7 * * 5"
   workflow_dispatch:
+  schedule:
+    - cron: "0 7 * * 5"  # venerdì 08:00 italian time
 
 jobs:
   run-analysis:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write   # NECESSARIO per fare push!
 
     steps:
-      - name: Checkout repo
-        uses: actions/checkout@v4
+    - name: Checkout repo
+      uses: actions/checkout@v3
+      with:
+        fetch-depth: 0
 
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.11"
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: "3.11"
 
-      - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install -r requirements.txt
+    - name: Install dependencies
+      run: |
+        pip install -r requirements.txt
 
-      - name: Run weekly analysis
-        env:
-          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
-          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
-          WEBAPP_URL: "https://maxbertolo.github.io/traiding-telegram-miniapp/"
-        run: |
-          python -m src.main
+    - name: Run weekly analysis
+      env:
+        TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+        TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        WEBAPP_URL: ${{ secrets.WEBAPP_URL }}
+      run: |
+        python -m src.main
 
-      # NOTA:
-      # Abbiamo tolto lo step di commit & push per evitare errori di conflitto.
-      # I report vengono generati e inviati via Telegram,
-      # ma se vuoi salvarli nel repo dovrai fare commit/push dal tuo Mac.
-
+    - name: Commit updated data & reports
+      run: |
+        git config user.name "github-actions[bot]"
+        git config user.email "github-actions[bot]@users.noreply.github.com"
+        
+        git add docs/*.html
+        git add data/portfolio_state.json || true
+        
+        if git diff --cached --quiet; then
+          echo "No changes to commit"
+        else
+          git commit -m "Weekly update"
+          git push
+        fi
