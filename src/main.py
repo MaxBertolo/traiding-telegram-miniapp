@@ -79,6 +79,15 @@ def run_weekly_analysis() -> None:
     latest_path = REPORTS_DIR / "latest.html"
     copyfile(report_path, latest_path)
 
+        # JSON per la mini-app
+    portfolio_json_path = REPORTS_DIR / "portfolio_latest.json"
+    export_portfolio_json(
+        output_path=portfolio_json_path,
+        state_after=new_state,
+        scores=picked_scores,
+        run_date=today,
+    )
+
     # 9. Salva stato aggiornato
     DATA_DIR.mkdir(parents=True, exist_ok=True)
     save_portfolio_state(state_path, new_state)
