@@ -45,6 +45,10 @@ jobs:
 
           # Aggiunge report e latest.html
           git add docs/*.html || true
+          git add docs/*.json || true
+          git add data/portfolio_state.json || true
+
+          git add docs/*.html || true
           git add data/portfolio_state.json || true
 
           # Se non ci sono cambiamenti, esce senza errore
