@@ -12,6 +12,7 @@ from .analysis.scoring import build_scores
 from .portfolio.portfolio_engine import rebalance_portfolio
 from .report.html_report import build_html_report
 from .telegram.bot import send_telegram_notification
+from .report.json_export import export_portfolio_json
 
 
 # Root del progetto = cartella che contiene src/, docs/, data/, config/
