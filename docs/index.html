@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
   <meta charset="utf-8" />
   <title>Traiding Mini-App</title>
@@ -9,6 +9,7 @@
       margin: 0;
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
       background: #f4f5f7;
+      color: #222;
     }
     header {
       padding: 12px 16px;
@@ -17,21 +18,260 @@
       font-weight: 600;
       font-size: 16px;
     }
-    #content {
-      height: calc(100vh - 48px);
+    main {
+      padding: 12px 16px 24px;
     }
-    iframe {
-      border: none;
+    h2 {
+      margin-top: 18px;
+      margin-bottom: 8px;
+      font-size: 16px;
+    }
+    p {
+      margin-top: 4px;
+      margin-bottom: 6px;
+      font-size: 14px;
+    }
+    table {
       width: 100%;
-      height: 100%;
-      background: white;
+      border-collapse: collapse;
+      margin-top: 6px;
+      margin-bottom: 12px;
+      font-size: 13px;
     }
+    th, td {
+      border: 1px solid #ddd;
+      padding: 4px 6px;
+      text-align: left;
+    }
+    th {
+      background: #f0f0f0;
+      font-weight: 600;
+    }
+    input[type="text"],
+    input[type="number"] {
+      width: 100%;
+      box-sizing: border-box;
+      padding: 3px 4px;
+      font-size: 13px;
+    }
+    button {
+      padding: 8px 12px;
+      font-size: 14px;
+      border-radius: 4px;
+      border: none;
+      cursor: pointer;
+      background: #007aff;
+      color: white;
+    }
+    button:disabled {
+      background: #ccc;
+      cursor: default;
+    }
+    .row-small {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      font-size: 14px;
+      margin-top: 6px;
+    }
+    .row-small span {
+      font-weight: 500;
+    }
+    .pill {
+      display: inline-block;
+      padding: 2px 6px;
+      border-radius: 999px;
+      font-size: 11px;
+    }
+    .pill.low { background:#e3f9e5; }
+    .pill.medium { background:#fff4ce; }
+    .pill.high { background:#ffe3e3; }
   </style>
 </head>
 <body>
-  <header>Traiding Mini-App – Weekly Report</header>
-  <div id="content">
-    <iframe src="latest.html"></iframe>
-  </div>
+  <header>Traiding Mini-App – Weekly Portfolio</header>
+  <main>
+    <section id="model-section">
+      <h2>Portafoglio modello (algoritmo)</h2>
+      <p id="model-date"></p>
+      <div class="row-small">
+        <span>Cash modello:</span>
+        <span id="model-cash"></span>
+      </div>
+      <table id="model-table">
+        <thead>
+          <tr>
+            <th>Ticker</th>
+            <th>Qty</th>
+            <th>Avg price</th>
+            <th>Score</th>
+            <th>Risk</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </section>
+
+    <section id="user-section">
+      <h2>Le tue decisioni reali</h2>
+      <p>Vuoi spostare i soldi questa settimana? Inserisci quanto investi o vendi per ciascun titolo (max 10 righe). I dati sono salvati sul tuo dispositivo.</p>
+      <div class="row-small">
+        <span>Cassa che vuoi mantenere (€):</span>
+        <input type="number" id="user-cash" step="10" />
+      </div>
+      <table id="user-table">
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Ticker</th>
+            <th>Operazione</th>
+            <th>Importo (€)</th>
+            <th>Note</th>
+          </tr>
+        </thead>
+        <tbody>
+          <!-- 10 righe editabili -->
+        </tbody>
+      </table>
+      <button id="save-btn">Salva decisioni</button>
+      <p id="save-status"></p>
+    </section>
+  </main>
+
+  <script>
+    const STORAGE_KEY = "traiding-user-portfolio-v1";
+
+    function riskPill(risk) {
+      const r = (risk || "").toLowerCase();
+      if (r === "low") return '<span class="pill low">Low</span>';
+      if (r === "high") return '<span class="pill high">High</span>';
+      if (r === "medium") return '<span class="pill medium">Medium</span>';
+      return "";
+    }
+
+    async function loadModelPortfolio() {
+      try {
+        const resp = await fetch("portfolio_latest.json", { cache: "no-store" });
+        if (!resp.ok) throw new Error("HTTP " + resp.status);
+        const data = await resp.json();
+
+        document.getElementById("model-date").textContent =
+          "Ultimo aggiornamento: " + (data.run_date || "-");
+        document.getElementById("model-cash").textContent =
+          (data.cash ?? 0).toFixed(2) + " €";
+
+        const tbody = document.querySelector("#model-table tbody");
+        tbody.innerHTML = "";
+
+        const positions = data.positions || [];
+        const scores = data.scores || {};
+
+        positions.forEach((p) => {
+          const s = scores[p.ticker] || {};
+          const tr = document.createElement("tr");
+          tr.innerHTML = `
+            <td>${p.ticker}</td>
+            <td>${p.quantity.toFixed(2)}</td>
+            <td>${p.avg_price.toFixed(2)}</td>
+            <td>${s.score !== undefined ? s.score.toFixed(3) : ""}</td>
+            <td>${riskPill(s.risk)}</td>
+          `;
+          tbody.appendChild(tr);
+        });
+      } catch (err) {
+        console.error("Errore nel caricamento del portafoglio modello:", err);
+      }
+    }
+
+    function buildUserTable() {
+      const tbody = document.querySelector("#user-table tbody");
+      tbody.innerHTML = "";
+      for (let i = 0; i < 10; i++) {
+        const tr = document.createElement("tr");
+        tr.innerHTML = `
+          <td>${i + 1}</td>
+          <td><input type="text" data-field="ticker" /></td>
+          <td>
+            <select data-field="side">
+              <option value="">-</option>
+              <option value="BUY">BUY</option>
+              <option value="SELL">SELL</option>
+            </select>
+          </td>
+          <td><input type="number" step="10" data-field="amount" /></td>
+          <td><input type="text" data-field="note" /></td>
+        `;
+        tbody.appendChild(tr);
+      }
+    }
+
+    function loadUserState() {
+      try {
+        const raw = localStorage.getItem(STORAGE_KEY);
+        if (!raw) return;
+
+        const data = JSON.parse(raw);
+        if (data.cash !== undefined) {
+          document.getElementById("user-cash").value = data.cash;
+        }
+
+        const rows = data.rows || [];
+        const tbody = document.querySelector("#user-table tbody");
+        rows.forEach((row, idx) => {
+          if (idx >= 10) return;
+          const tr = tbody.children[idx];
+          if (!tr) return;
+          tr.querySelector('[data-field="ticker"]').value = row.ticker || "";
+          tr.querySelector('[data-field="side"]').value = row.side || "";
+          tr.querySelector('[data-field="amount"]').value = row.amount || "";
+          tr.querySelector('[data-field="note"]').value = row.note || "";
+        });
+      } catch (err) {
+        console.error("Errore nel leggere lo stato utente:", err);
+      }
+    }
+
+    function saveUserState() {
+      const cashStr = document.getElementById("user-cash").value;
+      const cash = cashStr ? parseFloat(cashStr) : null;
+
+      const rows = [];
+      const tbody = document.querySelector("#user-table tbody");
+      Array.from(tbody.children).forEach((tr) => {
+        const ticker = tr.querySelector('[data-field="ticker"]').value.trim();
+        const side = tr.querySelector('[data-field="side"]').value;
+        const amountStr = tr.querySelector('[data-field="amount"]').value;
+        const note = tr.querySelector('[data-field="note"]').value.trim();
+
+        if (!ticker && !side && !amountStr && !note) {
+          return; // riga vuota → non la salviamo
+        }
+
+        rows.push({
+          ticker,
+          side,
+          amount: amountStr ? parseFloat(amountStr) : null,
+          note,
+        });
+      });
+
+      const payload = { cash, rows };
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
+
+      const status = document.getElementById("save-status");
+      status.textContent = "Decisioni salvate sul dispositivo ✅";
+      setTimeout(() => { status.textContent = ""; }, 2500);
+    }
+
+    document.addEventListener("DOMContentLoaded", () => {
+      buildUserTable();
+      loadUserState();
+      loadModelPortfolio();
+
+      document
+        .getElementById("save-btn")
+        .addEventListener("click", saveUserState);
+    });
+  </script>
 </body>
 </html>
