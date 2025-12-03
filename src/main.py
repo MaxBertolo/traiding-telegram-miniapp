@@ -14,41 +14,59 @@ from .report.html_report import build_html_report
 from .telegram.bot import send_telegram_notification
 
 
+# Root del progetto = cartella che contiene src/, docs/, data/, config/
 BASE_DIR = Path(__file__).resolve().parents[1]
 DATA_DIR = BASE_DIR / "data"
 REPORTS_DIR = BASE_DIR / "docs"
 
 
 def run_weekly_analysis() -> None:
-    # 1. Load settings
-    settings = load_settings(BASE_DIR / "config" / "settings.yaml")
+    """
+    Pipeline settimanale:
 
-    # 2. Load or initialize portfolio state
+    1. Carica la configurazione
+    2. Carica lo stato del portafoglio (o lo inizializza a 5000 cash)
+    3. Colleziona segnali social, news e dati di mercato (mock)
+    4. Calcola il sentiment
+    5. Costruisce uno score per ogni ticker
+    6. Ribilancia il portafoglio (decide i BUY)
+    7. Genera il report HTML del giorno
+    8. Copia il report in latest.html per la mini-app
+    9. Salva il nuovo stato del portafoglio
+    10. Invia la notifica Telegram con i bottoni
+    """
+    # 1. Config
+    settings_path = BASE_DIR / "config" / "settings.yaml"
+    settings = load_settings(settings_path)
+
+    # 2. Stato portafoglio
+    state_path = DATA_DIR / "portfolio_state.json"
     state = load_portfolio_state(
-        DATA_DIR / "portfolio_state.json",
+        state_path,
         start_cash=settings["start_cash"],
         start_date=settings["start_date"],
     )
 
-    # 3. Collect raw signals
+    # 3. Raccolta segnali (mock)
     social_raw = collect_social_signals(settings)
     news_raw = collect_news_signals(settings)
     market_data = collect_market_data(settings, tickers_hint=state.tickers())
 
-    # 4. Compute sentiment
+    # 4. Sentiment
     social_signals = compute_sentiment(social_raw)
     news_signals = compute_sentiment(news_raw)
 
-    # 5. Build scores by ticker
+    # 5. Score per ticker
     scores = build_scores(social_signals, news_signals, market_data)
 
-    # 6. Rebalance portfolio based on scores
+    # 6. Ribilanciamento portafoglio
     new_state, trades, picked_scores = rebalance_portfolio(state, scores)
 
-    # 7. Build HTML report for today
-    today = datetime.utcnow().date().isoformat()
-    report_path = REPORTS_DIR / f"report_{today}.html"
-    report_url_rel = f"report_{today}.html"
+    # 7. Report HTML del giorno
+    today = datetime.utcnow().date().isoformat()  # es. "2025-12-03"
+    REPORTS_DIR.mkdir(parents=True, exist_ok=True)
+    report_filename = f"report_{today}.html"
+    report_path = REPORTS_DIR / report_filename
 
     build_html_report(
         output_path=report_path,
@@ -59,16 +77,17 @@ def run_weekly_analysis() -> None:
         run_date=today,
     )
 
-    # 8. Also expose latest report as docs/latest.html for the mini-app
+    # 8. Copia come latest.html per la mini-app (index.html → iframe su latest.html)
     latest_path = REPORTS_DIR / "latest.html"
     copyfile(report_path, latest_path)
 
-    # 9. Persist new portfolio state
-    save_portfolio_state(DATA_DIR / "portfolio_state.json", new_state)
+    # 9. Salva nuovo stato portafoglio
+    DATA_DIR.mkdir(parents=True, exist_ok=True)
+    save_portfolio_state(state_path, new_state)
 
-    # 10. Notify via Telegram with links to mini-app and report
+    # 10. Notifica Telegram (i link sono relativi alla root di docs/)
     send_telegram_notification(
-        report_url_suffix=report_url_rel,
+        report_url_suffix=report_filename,
         state_after=new_state,
         trades=trades,
     )
