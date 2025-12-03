@@ -3,48 +3,58 @@ name: Weekly Traiding Analysis
 on:
   workflow_dispatch:
   schedule:
-    - cron: "0 7 * * 5"  # venerdì 08:00 italian time
+    - cron: "0 7 * * 5"  # venerdì 08:00 italian time circa
 
 jobs:
   run-analysis:
     runs-on: ubuntu-latest
+
+    # Permessi per poter fare git push
     permissions:
-      contents: write   # NECESSARIO per fare push!
+      contents: write
 
     steps:
-    - name: Checkout repo
-      uses: actions/checkout@v3
-      with:
-        fetch-depth: 0
+      - name: Checkout repo
+        uses: actions/checkout@v4
+        with:
+          # Serve tutta la history per poter fare pull --rebase
+          fetch-depth: 0
 
-    - name: Set up Python
-      uses: actions/setup-python@v4
-      with:
-        python-version: "3.11"
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
 
-    - name: Install dependencies
-      run: |
-        pip install -r requirements.txt
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
 
-    - name: Run weekly analysis
-      env:
-        TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
-        TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
-        WEBAPP_URL: ${{ secrets.WEBAPP_URL }}
-      run: |
-        python -m src.main
+      - name: Run weekly analysis
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          WEBAPP_URL: ${{ secrets.WEBAPP_URL }}
+        run: |
+          python -m src.main
 
-    - name: Commit updated data & reports
-      run: |
-        git config user.name "github-actions[bot]"
-        git config user.email "github-actions[bot]@users.noreply.github.com"
-        
-        git add docs/*.html
-        git add data/portfolio_state.json || true
-        
-        if git diff --cached --quiet; then
-          echo "No changes to commit"
-        else
-          git commit -m "Weekly update"
-          git push
-        fi
+      - name: Commit updated data & reports
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          # Aggiunge report e latest.html
+          git add docs/*.html || true
+          git add data/portfolio_state.json || true
+
+          # Se non ci sono cambiamenti, esce senza errore
+          if git diff --cached --quiet; then
+            echo "No changes to commit"
+            exit 0
+          fi
+
+          # Integra eventuali commit che hai fatto tu dal Mac
+          git pull --rebase origin main || true
+
+          # Push del branch main aggiornato
+          git push origin HEAD:main
